@@ -141,7 +141,7 @@ print("Mean of Residuals {}".format(mean_residuals1))
 
 
 # %%
-print(LR1.intercept_, LR1.coef_, LR1.score(x1, Y))
+print(LR1.score(x1, Y))
 # %%
 x2=ds[['danceability','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
 Y=ds[['popularity']]
@@ -151,7 +151,38 @@ x2_train, x2_test, Y2_train, Y2_test = train_test_split(x2, Y,random_state = 0,t
 Y2_pred = LR2.predict(x2_train)
 residuals2 = Y2_train-Y2_pred
 mean_residuals2 = np.mean(residuals2)
-print("Mean of Residuals {}".format(mean_residuals2))
+#print("Mean of Residuals {}".format(mean_residuals2))
 #Close enough to 0 for our purposes
 print(LR2.score(x2, Y))
+#%%
+#polymodel
+from sklearn.preprocessing import PolynomialFeatures
+poly = PolynomialFeatures(degree=2, include_bias=False)
+poly_features = poly.fit_transform(x1)
+X_train, X_test, y_train, y_test = train_test_split(poly_features, Y, test_size=0.3, random_state=42)
+
+poly_reg_model = LinearRegression()
+poly_reg_model.fit(X_train, y_train)
+
+poly_reg_y_predicted = poly_reg_model.predict(X_test)
+from sklearn.metrics import mean_squared_error
+poly_reg_rmse = np.sqrt(mean_squared_error(y_test, poly_reg_y_predicted))
+poly_reg_rmse
+
+print(poly_reg_model.score(poly_features, Y))
+# %%
+from sklearn.preprocessing import PolynomialFeatures
+poly = PolynomialFeatures(degree=2, include_bias=False)
+poly_features2 = poly.fit_transform(x2)
+X_train, X_test, y_train, y_test = train_test_split(poly_features2, Y, test_size=0.3, random_state=42)
+
+poly_reg_model2 = LinearRegression()
+poly_reg_model2.fit(X_train, y_train)
+
+poly_reg_y_predicted = poly_reg_model2.predict(X_test)
+from sklearn.metrics import mean_squared_error
+poly_reg_rmse = np.sqrt(mean_squared_error(y_test, poly_reg_y_predicted))
+poly_reg_rmse
+
+print(poly_reg_model2.score(poly_features2, Y))
 # %%
