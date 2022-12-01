@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import statsmodels.api as sms
+from sklearn.linear_model import LinearRegression
 #I added researchpy and scipy.stats for the t-tests
 import researchpy as rp
 import scipy.stats as stats
@@ -33,6 +35,10 @@ plt.legend(loc='upper right')
 plt.show()
 print("The Key of a song is to represent what sacle of the 13 tones it is (mainly) native to, C=0")
 
+plt.hist([ds["key"]], alpha=0.5, edgecolor="black", label=['Key Plot (C=0, B-Flat=11) '])
+plt.legend(loc='upper right')
+plt.show()
+print("The Key of a song is to represent what sacle of the 13 tones it is (mainly) native to, C=0")
 
 # %%
 plt.hist([ds["loudness"]], alpha=0.5, edgecolor="black", label=['Loudness Plot (in db)'])
@@ -76,3 +82,76 @@ print("GRAPH NOTE: THERE ARE LABELS, BUT THEY ARE NOT VISIBLE IN DARK MODE")
 
 # %%
 #Unit 2: Correlation Plots TBD
+ds.corr()
+#%%
+#Unit 3: Modeling
+
+# %%
+#linearity Check
+ds.plot.scatter(x='tempo', y='popularity')
+plt.xlabel('tempo', fontsize=18)
+plt.ylabel('popularity', fontsize=18)
+plt.show()
+#Not very linear
+ds.plot.scatter(x='valence', y='popularity')
+plt.xlabel('Valence', fontsize=18)
+plt.ylabel('popularity', fontsize=18)
+plt.show()
+# Not really linear
+ds.plot.scatter(x='loudness', y='popularity')
+plt.xlabel('loudness', fontsize=18)
+plt.ylabel('popularity', fontsize=18)
+plt.show()
+#Sort of linear
+ds.plot.scatter(x='energy', y='popularity')
+plt.xlabel('energy', fontsize=18)
+plt.ylabel('popularity', fontsize=18)
+plt.show()
+#High-end Linear
+#Not Graphing Key, Mmode, time_signature because they are all non-continuous and wont scatterplot well
+#None are very strongly correlated to popularity
+
+# %%
+#Normality Check
+sms.qqplot(ds['popularity'])
+plt.show()
+#Approximately Normal
+# %%
+#Mean Residuals
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+
+
+  
+#Maximal Model with All Variables
+x1=ds[['key','Mmode', 'loudness', 'tempo', 'time_signature', 'duration_ms', 'explicit']]
+Y=ds[['popularity']]
+LR1 = LinearRegression()
+LR1.fit(x1, Y)
+x1_train, x1_test, Y1_train, Y1_test = train_test_split(x1, Y,random_state = 0,test_size=0.25)
+Y1_pred = LR1.predict(x1_train)
+residuals1 = Y1_train-Y1_pred
+mean_residuals1 = np.mean(residuals1)
+print("Mean of Residuals {}".format(mean_residuals1))
+#Close enough to 0 for our purposes
+
+
+
+# %%
+print(LR1.intercept_, LR1.coef_, LR1.score(x1, Y))
+# %%
+x2=ds[['danceability','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y=ds[['popularity']]
+LR2 = LinearRegression()
+LR2.fit(x2, Y)
+x2_train, x2_test, Y2_train, Y2_test = train_test_split(x2, Y,random_state = 0,test_size=0.25)
+Y2_pred = LR2.predict(x2_train)
+residuals2 = Y2_train-Y2_pred
+mean_residuals2 = np.mean(residuals2)
+print("Mean of Residuals {}".format(mean_residuals2))
+#Close enough to 0 for our purposes
+print(LR2.score(x2, Y))
+# %%
