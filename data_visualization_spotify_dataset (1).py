@@ -60,7 +60,7 @@ data.isnull().sum()
 
 # ## 1. Univariate Analysis
 
-# In[76]:
+# In[268]:
 
 
 sns.boxplot(data['popularity'])
@@ -250,16 +250,129 @@ for genre in unique_genre:
 ## track_genre, bins, barplot on correlated variables, link that to danceability. 
 
 
-# In[ ]:
+# In[150]:
+
+
+data.head()
+
+
+# In[245]:
+
+
+X = data[['energy', 'instrumentalness','acousticness', 'liveness','loudness', 'tempo', 'valence']]
+y = data['danceability']
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state =1234, test_size = 0.3)
+
+
+# In[236]:
+
+
+from sklearn.linear_model import LinearRegression
+lr = LinearRegression()
+lr.fit(X_train, y_train)
+lr.score(X_test, y_test)*100
+
+
+# In[197]:
+
+
+from statsmodels.formula.api import ols
+model = ols(formula='popularity ~ danceability + energy + speechiness + acousticness + C(mode) + liveness + loudness',data=data).fit()
+model.summary()
+
+
+# In[189]:
+
+
+data['duration_ms'] = data['duration_ms'] / 6000
+
+
+# In[210]:
+
+
+data['track_genre'].unique()
+
+
+# In[214]:
+
+
+from sklearn.preprocessing import LabelEncoder
+le = LabelEncoder()
+data['track_genre'] = le.fit_transform(data['track_genre'])
+
+
+# In[215]:
+
+
+data.head()
+
+
+# In[246]:
 
 
 
+from sklearn.neighbors import KNeighborsRegressor
+model = KNeighborsRegressor(n_neighbors = 5)
+model.fit(X_train, y_train)
 
 
-# In[ ]:
+# In[247]:
 
 
+model.score(X_test, y_test)
 
+
+# In[266]:
+
+
+import xgboost as xg
+from sklearn.metrics import mean_squared_error as MSE
+from sklearn.metrics import explained_variance_score
+# Instantiation
+xgb_r = xg.XGBRegressor(objective ='reg:linear', n_estimators = 10, seed = 123)
+
+# Fitting the model
+xgb_r.fit(X_train, y_train)
+
+# Predict the model
+pred = xgb_r.predict(X_test)
+
+# RMSE Computation
+rmse = np.sqrt(MSE(y_test, pred))
+print("RMSE : % f" %(rmse))
+print("Accuracy:", xgb_r.score(X_test, y_test)*100)
+
+
+# In[259]:
+
+
+x_ax = range(len(y_test))
+plt.plot(x_ax, y_test, label="original")
+plt.plot(x_ax, pred, label="predicted")
+plt.title("Danceability test and predicted data")
+plt.legend()
+plt.show()
+
+
+# In[263]:
+
+
+from xgboost import plot_importance
+import matplotlib.pyplot as plt
+plt.style.use('fivethirtyeight')
+plt.rcParams.update({'font.size': 16})
+
+fig, ax = plt.subplots(figsize=(12,6))
+plot_importance(xgb_r, max_num_features=8, ax=ax)
+plt.show();
+
+
+# In[264]:
+
+
+## Where here the F score is a measure "...based on the number of times a variable is selected for splitting, 
+## weighted by the squared improvement to the model as a result of each split, and averaged over all trees."
 
 
 # In[ ]:
