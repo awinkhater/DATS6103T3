@@ -18,13 +18,12 @@ data=pd.read_csv('dataset.csv')
 # rename unnamed column
 
 
-# In[3]:
+# In[3]
 
 
 data.shape
 
 
-# In[4]:
 
 
 # We have 1,14,000 rows and 21 columns
@@ -36,11 +35,11 @@ data.shape
 data.head(5)
 
 
-# ## Finding Null values in the dataset
+
 
 # In[6]:
 
-
+# ## Finding Null values in the dataset
 data.isnull().sum()
 
 
@@ -56,12 +55,12 @@ data = data.dropna()
 data.isnull().sum()
 
 
+
+
+# In[9]:
 # ## Exploratory Data Analysis.
 
 # ## 1. Univariate Analysis
-
-# In[9]:
-
 
 sns.boxplot(data['popularity'])
 
