@@ -1,3 +1,4 @@
+#%%
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -16,7 +17,7 @@ from sklearn.metrics import r2_score
 # In[2]:
 
 
-full_spot_data = pd.read_csv('dataset.csv')
+full_spot_data = pd.read_csv('spotify_dataset.csv')
 # index= false
 # rename unnamed column
 
@@ -201,7 +202,13 @@ sns.boxplot(full_spot_data['valence'])
 # # 2. Bivariate Analysis
 
 # In[30]:
-
+req_spot_data = full_spot_data[["track_id","popularity","duration_ms","danceability","explicit",
+                                "key","energy","loudness","mode","liveness","speechiness",
+                                "instrumentalness","acousticness","valence","tempo",
+                                "time_signature"]]
+print(req_spot_data.info())
+req_spot_data.head()
+#%%
 
 plt.figure(figsize=(20, 10))
 #correlation plot of all the variables. 
@@ -251,14 +258,58 @@ print(h)
 # ## 6. As instrumentalness increases, the positiveness conveyed by the track decreases hence the danceability also decreases. 
 
 # In[35]:
+#A cautionary check for multicolinearity, something we suspect will be high because of the high variable correlations
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+rsd= req_spot_data.copy(deep=True)
+rsd.drop(['track_id'], axis =1, inplace=True)
+print(rsd.explicit.unique())
+def encode(x):
+    if x ==True: return(np.float(1))
+    else: return(np.float(0))
+print(rsd.explicit.unique().tolist())
+rsd['explicit']=rsd['explicit'].apply(lambda x: encode(x))
+print(rsd.info())          
 
 
-from statsmodels.formula.api import ols
-model = ols(formula='popularity ~ danceability + energy + speechiness + acousticness + C(mode) + liveness + loudness',data=full_spot_data).fit()
-model.summary()
+#%%
+# VIF dataframe
+vif_data = pd.DataFrame()
+vif_data["feature"] = rsd.columns
+  
+# calculating VIF for each feature
+vif_data["VIF"] = [variance_inflation_factor(rsd.values, i)
+                          for i in range(len(rsd.columns))]
+  
+print(vif_data)
+#These VIF values are very bad and 
+#will definetly hinder our regression attempts. 
+#We will implement some data processing to bypass much of this multicolinearity issue:
+#%%
+#Creating a multicolinearity resilient dataset using correlation values from our EDA
+#mcdf stands for Multicolinearity Control Data Frame
+#Using correlation and subject matter expertise, we have decided to combine certain variables to decrease multicolinearity concerns
+mcdf= rsd.copy(deep=True)
+mcdf['valence+danceability']=mcdf['valence'] + mcdf['danceability']
+mcdf['time_signature+tempo']=mcdf['time_signature']+ mcdf['tempo']
+mcdf.drop(['time_signature','tempo', 'energy', 'loudness', 'valence', 'danceability'], axis=1,inplace=True)
+mcdf= mcdf.apply(lambda x: x-x.mean()) #Here we center our data to remove structural multicolinearity with our combined variables
+#After repeated testing we found that energy and loudness more often, hurt our models than helped them (Two highest VIF scores)
+#We removed them
+# VIF dataframe
+vif_data = pd.DataFrame()
+vif_data["feature"] = mcdf.columns
+  
+# calculating VIF for each feature
+vif_data["VIF"] = [variance_inflation_factor(mcdf.values, i)
+                          for i in range(len(mcdf.columns))]
+  
+print(vif_data)
+print(mcdf.explicit.unique())
+#This is great because our only variables that have multicolinearity issues
+# With the rest of our variables passing the under 5 threshhold, We shall move on with our analysis
+#%%
 
-
-# # Modeling for traditional and algorithmic variables combined
+#Now to start Modeling:
 
 
 # <h3>Model Building</h3>
@@ -266,9 +317,10 @@ model.summary()
 # In[21]:
 
 
-# Linear regression to predict popularity using traditional terms.
-x1 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature', 'duration_ms', 'explicit']]
-Y = full_spot_data[['popularity']]
+# Linear regression to predict popularity using only traditional terms.
+#We can leave 
+x1 = mcdf[['key','mode', 'time_signature+tempo', 'duration_ms', 'explicit']]
+Y = mcdf[['popularity']]
 LR1 = LinearRegression()
 LR1.fit(x1, Y)
 x1_train, x1_test, Y1_train, Y1_test = train_test_split(x1, Y,random_state = 0,test_size=0.25)
@@ -285,8 +337,8 @@ print(LR1.coef_)
 
 
 # Linear regression to predict popularity using algo terms.
-x2 = full_spot_data[['danceability','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y = full_spot_data[['popularity']]
+x2 = mcdf[['valence+danceability', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y = mcdf[['popularity']]
 LR2 = LinearRegression()
 LR2.fit(x2, Y)
 x2_train, x2_test, Y2_train, Y2_test = train_test_split(x2, Y,random_state = 0,test_size=0.25)
@@ -303,8 +355,8 @@ print(LR2.coef_)
 
 
 # Using Polynomial Regression to predict popularity using traditional terms
-x1 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature', 'duration_ms', 'explicit']]
-Y = full_spot_data[['popularity']]
+x1 = mcdf[['key','mode', 'time_signature+tempo', 'duration_ms', 'explicit']]
+Y = mcdf[['popularity']]
 
 from sklearn.preprocessing import PolynomialFeatures
 poly = PolynomialFeatures(degree=2, include_bias=False)
@@ -325,10 +377,9 @@ print(poly_reg_model.coef_)
 
 # In[8]:
 
-
 # Polynomial regression to predict popularity using algo terms.
-x2 = full_spot_data[['danceability','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y = full_spot_data[['popularity']]
+x2 = mcdf[['valence+danceability', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y = mcdf[['popularity']]
 poly_features2 = poly.fit_transform(x2)
 X_train, X_test, y_train, y_test = train_test_split(poly_features2, Y, test_size=0.3, random_state=42)
 
@@ -347,9 +398,9 @@ print(poly_reg_model2.coef_)
 # In[9]:
 
 
-# Predictiong dancability by using algo terms using linear regression
-X3 = full_spot_data[['popularity','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y1 = full_spot_data[['danceability']]
+# Predicting Valence+dancability by using algo terms using linear regression
+X3 = mcdf[['popularity', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y1 = mcdf[['valence+danceability']]
 LR3 = LinearRegression()
 LR3.fit(X3,Y1)
 X3_train, X3_test, Y3_train, Y3_test = train_test_split(X3,Y1,random_state = 0,test_size = 0.25)
@@ -363,9 +414,9 @@ print(LR3.coef_)
 # In[10]:
 
 
-# Linear regression by using traditional terms for predicting dancability
-X4 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature', 'duration_ms', 'explicit']]
-Y1 = full_spot_data[['danceability']]
+# Linear regression by using traditional terms for predicting valence+dancability
+X4 = mcdf[['key','mode','time_signature+tempo', 'duration_ms', 'explicit']]
+Y1 = mcdf[['valence+danceability']]
 LR4 = LinearRegression()
 LR4.fit(X4,Y1)
 X4_train, X4_test, Y4_train, Y4_test = train_test_split(X4,Y1,random_state = 0,test_size = 0.25)
@@ -374,14 +425,12 @@ residuals4 = Y4_train-Y4_pred
 mean_residuals4 = np.mean(residuals4)
 print(LR4.score(X4, Y1))
 print(LR4.coef_)
-
-
 # In[11]:
 
 
-# Polynomial regression by using algo terms for dancability
-X3 = full_spot_data[['popularity','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y1 = full_spot_data[['danceability']]
+# Polynomial regression by using algo terms for valence+dancability
+X3 = mcdf[['popularity', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y1 = mcdf[['valence+danceability']]
 poly_features3 = poly.fit_transform(X3)
 X3a_train, X3a_test, Y3a_train, Y3a_test = train_test_split(poly_features3, Y1, test_size=0.3, 
                                                             random_state=42)
@@ -401,9 +450,9 @@ print(poly_reg_model3.coef_)
 # In[12]:
 
 
-# Polynomial regression by using traditional terms for predicting dancability.
-X4 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature', 'duration_ms', 'explicit']]
-Y1 = full_spot_data[['danceability']]
+# Polynomial regression by using traditional terms for predicting valence+dancability.
+X4 = mcdf[['key','mode', 'time_signature+tempo', 'duration_ms', 'explicit']]
+Y1 = mcdf[['valence+danceability']]
 poly_features4 = poly.fit_transform(X4)
 X4a_train, X4a_test, Y4a_train, Y4a_test = train_test_split(poly_features4, Y1, test_size=0.3, random_state=42)
 
@@ -417,13 +466,12 @@ poly_reg_rmse4
 print(poly_reg_model4.score(poly_features4, Y1))
 print(poly_reg_model4.coef_)
 
-
 # In[13]:
 
 
 # Linear regression using algo terms for determining duration of track.
-X5 = full_spot_data[['popularity','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y2 = full_spot_data[['duration_ms']]
+X5 = mcdf[['popularity', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y2 = mcdf[['duration_ms']]
 LR5 = LinearRegression()
 LR5.fit(X5,Y2)
 X5_train, X5_test, Y5_train, Y5_test = train_test_split(X5,Y2,random_state = 0,test_size = 0.25)
@@ -435,11 +483,9 @@ print(LR5.coef_)
 
 
 # In[14]:
-
-
 # Linear regression by using traditional terms for predicting duration of track.
-X6 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature', 'explicit']]
-Y2 = full_spot_data[['duration_ms']]
+X6 = mcdf[['key','mode', 'time_signature+tempo', 'explicit']]
+Y2 = mcdf[['duration_ms']]
 LR6 = LinearRegression()
 LR6.fit(X6,Y2)
 X6_train, X6_test, Y6_train, Y6_test = train_test_split(X6,Y2,random_state = 0,test_size = 0.25)
@@ -451,11 +497,9 @@ print(LR6.coef_)
 
 
 # In[15]:
-
-
 # Using Polynomial regression to predict duration of track using algo terms
-X5 = full_spot_data[['popularity','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y2 = full_spot_data[['duration_ms']]
+X5 = mcdf[['popularity', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y2 = mcdf[['duration_ms']]
 poly_features5 = poly.fit_transform(X5)
 X5a_train, X5a_test, Y5a_train, Y5a_test = train_test_split(poly_features5, Y2, test_size=0.3, random_state=42)
 
@@ -469,13 +513,10 @@ poly_reg_rmse5
 print(poly_reg_model5.score(poly_features5, Y2))
 print(poly_reg_model5.coef_)
 
-
 # In[16]:
-
-
 # Using Polynomial regression to predict duration of track using traditional terms
-X6 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature', 'explicit']]
-Y2 = full_spot_data[['duration_ms']]
+X6 = mcdf[['key','mode',  'time_signature+tempo', 'explicit']]
+Y2 = mcdf[['duration_ms']]
 poly_features6 = poly.fit_transform(X6)
 X6a_train, X6a_test, Y6a_train, Y6a_test = train_test_split(poly_features6, Y2, test_size=0.3, random_state=42)
 
@@ -494,10 +535,8 @@ print(poly_reg_model6.coef_)
 
 # In[23]:
 
-
-X7 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature', 'duration_ms', 
-                    'explicit']]
-Y3 = full_spot_data[['danceability']]
+X7 = mcdf[['key','mode', 'time_signature+tempo' ,'duration_ms', 'explicit']]
+Y3 = mcdf[['valence+danceability']]
 
 from sklearn.neighbors import KNeighborsRegressor
 
@@ -509,13 +548,10 @@ knn.fit(X7a_train,Y7a_train)
 Y7a_pred_test = knn.predict(X7a_test)
 print(knn.score(X4, Y1))
 #print(knn.coef_)
-
-
 # In[33]:
 
-
-X8 = full_spot_data[['popularity','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y3 = full_spot_data[['danceability']]
+X8 = mcdf[['popularity', 'speechiness','acousticness', 'instrumentalness','liveness']]
+Y3 = mcdf[['valence+danceability']]
 
 X8a_train, X8a_test, Y8a_train, Y8a_test = train_test_split(X8, Y3, test_size=0.25,
                                                             random_state=42)
@@ -529,11 +565,9 @@ print(knn1.score(X8, Y3))
 # <p>Let us try using KNN on time duration.</p>
 
 # In[19]:
-
-
 # Using traditional variables
-X9 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature','explicit']]
-Y4 = full_spot_data[['duration_ms']]
+X9 = mcdf[['key','mode', 'time_signature+tempo','explicit']]
+Y4 = mcdf[['duration_ms']]
 
 X9a_train, X9a_test, Y9a_train, Y9a_test = train_test_split(X9, Y4, test_size=0.25,
                                                             random_state=42)
@@ -543,12 +577,9 @@ knn2.fit(X9a_train,Y9a_train)
 Y9a_pred_test = knn2.predict(X9a_test)
 print(knn2.score(X9, Y4))
 
-
 # In[20]:
-
-
-X10 = full_spot_data[['popularity','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y4 = full_spot_data[['duration_ms']]
+X10 = mcdf[['popularity', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y4 = mcdf[['duration_ms']]
 
 X10a_train, X10a_test, Y10a_train, Y10a_test = train_test_split(X10, Y4, test_size=0.25,
                                                             random_state=42)
@@ -560,39 +591,36 @@ print(knn3.score(X10, Y4))
 
 
 # In[26]:
+X9 = mcdf[['key','mode', 'time_signature+tempo', 'duration_ms', 'explicit']]
+Y4 = mcdf[['popularity']]
 
+from sklearn.neighbors import KNeighborsRegressor
 
-X11 = full_spot_data[['key','mode', 'loudness', 'tempo', 'time_signature', 'duration_ms', 'explicit']]
-Y5 = full_spot_data[['popularity']]
-
-X11a_train, X11a_test, Y11a_train, Y11a_test = train_test_split(X11, Y5, test_size=0.25,
+X9a_train, X9a_test, Y4a_train, Y4a_test = train_test_split(X9, Y4, test_size=0.25,
                                                             random_state=42)
-knn4 = KNeighborsRegressor(n_neighbors=5)
-print(knn4)
-knn4.fit(X11a_train,Y11a_train)
-Y11a_pred_test = knn4.predict(X11a_test)
-print(knn4.score(X11, Y5))
-
-
+knn = KNeighborsRegressor(n_neighbors=5)
+print(knn)
+knn.fit(X9a_train,Y4a_train)
+Y4a_pred_test = knn.predict(X9a_test)
+print(knn.score(X9, Y4))
+#print(knn.coef_)
 # In[28]:
+X10 = mcdf[[ 'speechiness', 'acousticness', 'instrumentalness','liveness']]
+Y4 = mcdf[['popularity']]
 
-
-X12 = full_spot_data[['danceability','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-Y5 = full_spot_data[['popularity']]
-
-X12a_train, X12a_test, Y12a_train, Y12a_test = train_test_split(X12, Y5, test_size=0.25,
+X10a_train, X10a_test, Y10a_train, Y10a_test = train_test_split(X10, Y4, test_size=0.25,
                                                             random_state=42)
-knn5 = KNeighborsRegressor(n_neighbors=5)
-print(knn5)
-knn5.fit(X12a_train,Y12a_train)
-Y12a_pred_test = knn5.predict(X12a_test)
-print(knn5.score(X12, Y5))
+knn3 = KNeighborsRegressor(n_neighbors=5)
+print(knn3)
+knn3.fit(X10a_train,Y10a_train)
+Y10a_pred_test = knn3.predict(X10a_test)
+print(knn3.score(X10, Y4))
 # ------------------------------------------------------------------------------------------------------------------------------------------------|
+#%%
 
-
-X = full_spot_data[['energy', 'instrumentalness','acousticness', 'liveness','loudness', 'tempo', 'valence']]
+X = mcdf[[ 'instrumentalness','acousticness', 'liveness', 'time_signature+tempo']]
 #X = data[['popularity','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
-y = full_spot_data['danceability']
+y = mcdf['valence+danceability']
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state =1234, test_size = 0.3)
 
