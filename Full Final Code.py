@@ -290,8 +290,7 @@ print(vif_data)
 #Using correlation and subject matter expertise, we have decided to combine certain variables to decrease multicolinearity concerns
 mcdf= rsd.copy(deep=True)
 mcdf['valence+danceability']=mcdf['valence'] + mcdf['danceability']
-mcdf['time_signature+tempo']=mcdf['time_signature']+ mcdf['tempo']
-mcdf.drop(['time_signature','tempo', 'energy', 'loudness', 'valence', 'danceability'], axis=1,inplace=True)
+mcdf.drop([ 'energy', 'loudness', 'valence', 'danceability'], axis=1,inplace=True)
 mcdf= mcdf.apply(lambda x: x-x.mean()) #Here we center our data to remove structural multicolinearity with our combined variables
 #After repeated testing we found that energy and loudness more often, hurt our models than helped them (Two highest VIF scores)
 #We removed them
@@ -319,7 +318,7 @@ print(mcdf.explicit.unique())
 
 # Linear regression to predict popularity using only traditional terms.
 #We can leave 
-x1 = mcdf[['key','mode', 'time_signature+tempo', 'duration_ms', 'explicit']]
+x1 = mcdf[['key','mode', 'time_signature', 'tempo', 'duration_ms', 'explicit']]
 Y = mcdf[['popularity']]
 LR1 = LinearRegression()
 LR1.fit(x1, Y)
@@ -355,7 +354,7 @@ print(LR2.coef_)
 
 
 # Using Polynomial Regression to predict popularity using traditional terms
-x1 = mcdf[['key','mode', 'time_signature+tempo', 'duration_ms', 'explicit']]
+x1 = mcdf[['key','mode', 'time_signature', 'tempo', 'duration_ms', 'explicit']]
 Y = mcdf[['popularity']]
 
 from sklearn.preprocessing import PolynomialFeatures
@@ -415,7 +414,7 @@ print(LR3.coef_)
 
 
 # Linear regression by using traditional terms for predicting valence+dancability
-X4 = mcdf[['key','mode','time_signature+tempo', 'duration_ms', 'explicit']]
+X4 = mcdf[['key','mode','time_signature', 'tempo', 'duration_ms', 'explicit']]
 Y1 = mcdf[['valence+danceability']]
 LR4 = LinearRegression()
 LR4.fit(X4,Y1)
@@ -451,7 +450,7 @@ print(poly_reg_model3.coef_)
 
 
 # Polynomial regression by using traditional terms for predicting valence+dancability.
-X4 = mcdf[['key','mode', 'time_signature+tempo', 'duration_ms', 'explicit']]
+X4 = mcdf[['key','mode', 'time_signature', 'tempo', 'duration_ms', 'explicit']]
 Y1 = mcdf[['valence+danceability']]
 poly_features4 = poly.fit_transform(X4)
 X4a_train, X4a_test, Y4a_train, Y4a_test = train_test_split(poly_features4, Y1, test_size=0.3, random_state=42)
@@ -484,7 +483,7 @@ print(LR5.coef_)
 
 # In[14]:
 # Linear regression by using traditional terms for predicting duration of track.
-X6 = mcdf[['key','mode', 'time_signature+tempo', 'explicit']]
+X6 = mcdf[['key','mode', 'time_signature', 'tempo', 'explicit']]
 Y2 = mcdf[['duration_ms']]
 LR6 = LinearRegression()
 LR6.fit(X6,Y2)
@@ -515,7 +514,7 @@ print(poly_reg_model5.coef_)
 
 # In[16]:
 # Using Polynomial regression to predict duration of track using traditional terms
-X6 = mcdf[['key','mode',  'time_signature+tempo', 'explicit']]
+X6 = mcdf[['key','mode',  'time_signature', 'tempo', 'explicit']]
 Y2 = mcdf[['duration_ms']]
 poly_features6 = poly.fit_transform(X6)
 X6a_train, X6a_test, Y6a_train, Y6a_test = train_test_split(poly_features6, Y2, test_size=0.3, random_state=42)
@@ -535,7 +534,7 @@ print(poly_reg_model6.coef_)
 
 # In[23]:
 
-X7 = mcdf[['key','mode', 'time_signature+tempo' ,'duration_ms', 'explicit']]
+X7 = mcdf[['key','mode', 'time_signature', 'tempo' ,'duration_ms', 'explicit']]
 Y3 = mcdf[['valence+danceability']]
 
 from sklearn.neighbors import KNeighborsRegressor
@@ -566,7 +565,7 @@ print(knn1.score(X8, Y3))
 
 # In[19]:
 # Using traditional variables
-X9 = mcdf[['key','mode', 'time_signature+tempo','explicit']]
+X9 = mcdf[['key','mode', 'time_signature', 'tempo','explicit']]
 Y4 = mcdf[['duration_ms']]
 
 X9a_train, X9a_test, Y9a_train, Y9a_test = train_test_split(X9, Y4, test_size=0.25,
@@ -591,7 +590,7 @@ print(knn3.score(X10, Y4))
 
 
 # In[26]:
-X9 = mcdf[['key','mode', 'time_signature+tempo', 'duration_ms', 'explicit']]
+X9 = mcdf[['key','mode', 'time_signature', 'tempo', 'duration_ms', 'explicit']]
 Y4 = mcdf[['popularity']]
 
 from sklearn.neighbors import KNeighborsRegressor
@@ -618,7 +617,7 @@ print(knn3.score(X10, Y4))
 # ------------------------------------------------------------------------------------------------------------------------------------------------|
 #%%
 
-X = mcdf[[ 'instrumentalness','acousticness', 'liveness', 'time_signature+tempo']]
+X = mcdf[[ 'instrumentalness','acousticness', 'liveness', 'time_signature', 'tempo']]
 #X = data[['popularity','energy', 'speechiness', 'acousticness', 'instrumentalness','liveness']]
 y = mcdf['valence+danceability']
 from sklearn.model_selection import train_test_split
