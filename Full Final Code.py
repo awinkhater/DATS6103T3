@@ -649,8 +649,24 @@ model.score(X_test, y_test)
 
 
 # In[40]:
+## For algorithmic and traditional variables combined
+X1 = full_spot_data[['energy', 'instrumentalness','acousticness', 'liveness','loudness', 'tempo', 'valence']]
+y1 = full_spot_data['danceability']
+X_train, X_test, y_train, y_test = train_test_split(X1, y1, random_state =1234, test_size = 0.3)
 
+#Linear Regression
+from sklearn.linear_model import LinearRegression
+lr = LinearRegression()
+lr.fit(X_train, y_train)
+print("Accuracy of Linear regression",lr.score(X_test, y_test)*100)
 
+#KNN
+from sklearn.neighbors import KNeighborsRegressor
+model = KNeighborsRegressor(n_neighbors = 5)
+model.fit(X_train, y_train)
+print("Accuracy of KNN regression",model.score(X_test, y_test)*100)
+
+#XGBoost
 import xgboost as xg
 from sklearn.metrics import mean_squared_error as MSE
 from sklearn.metrics import explained_variance_score
