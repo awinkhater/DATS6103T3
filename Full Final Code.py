@@ -681,8 +681,8 @@ pred = xgb_r.predict(X_test)
 
 # RMSE Computation
 rmse = np.sqrt(MSE(y_test, pred))
-print("RMSE : % f" %(rmse))
-print("Accuracy:", xgb_r.score(X_test, y_test)*100)
+print("RMSE of XGBoost model : % f" %(rmse))
+print("Accuracy of XGBoost model:", xgb_r.score(X_test, y_test)*100)
 
 
 # In[41]:
